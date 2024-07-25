@@ -1,0 +1,5 @@
+*.*
+!*.py
+!*.editorconfig
+!*.gitignore
+!*.md
