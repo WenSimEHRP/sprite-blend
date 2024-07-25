@@ -28,7 +28,9 @@ class ProcessImage:
         self.image_path: str    = image_path
         self.image: Image.Image = self.load_image
         self.tuple: tuple       = self.to_2d_tuple if isinstance(self.image, Image.Image) else None
-        if not self.check_index_mode: Print.error(f"Image {image_path} is not in index mode.")
+        if not self.check_index_mode:
+            Print.error(f"Image {image_path} is not in index mode.")
+            sys.exit(1)
         self.used_colours: set  = self.get_used_colours
 
     @property
@@ -167,18 +169,30 @@ def process_image(image_paths: list[str]) -> tuple:
 
 def main():
     import time
+    from datetime import datetime
     start = time.time()
+    print(start)
 
-    files = sys.argv[1:] if len(sys.argv) > 1 else [".\\platform_cement_asym_1.png", ".\\wood.png", ".\\real_asym_1.png"]
+    Print.info("blend.py - A tool to blend multiple images together")
+    Print.info(f"Copyright 2024-{datetime.now().year} WenSim <wensimehrp@gmail.com>")
+    Print.info("Licensed under the MIT License")
+    Print.info("")
 
-    # if len(sys.argv) < 3:
-    #     Print.error("Paths not specified\nUsage: blend.py <image1> <image2>")
-    #     sys.exit(1)
+    if len(sys.argv) < 2:
+        Print.error("Please provide at least one image to process\nUsage: blend.py <image1> <image2> ...")
+        sys.exit(1)
 
-    # file1 = ProcessImage(sys.argv[1])
-    # file2 = ProcessImage(sys.argv[2])
-    # Print.info(f"Processing {sys.argv[1]} and {sys.argv[2]}")
-    # spritemap, rec1, rec2 = CompareImage(file1, file2).my_tuple
+    if sys.argv[1] in ("-h", "--help", "-?"):
+        Print.info("Usage: blend.py <image1> <image2> ...")
+        sys.exit(0)
+
+
+    if len(sys.argv) > 3:
+        Print.warn("You are processing more than 3 images, this may use a lot of colours")
+
+
+    files = sys.argv[1:]
+
     spritemap, palette, recs = process_image(files)
     write_image("output.png", spritemap, palette)
 
