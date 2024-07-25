@@ -124,7 +124,7 @@ class CompareImage:
                     recolour_dict1[new_colour] = colour
                     recolour_dict2[new_colour] = colour2
 
-
+        Print.info(f"Numebr of colours: {len(common_colours)}")
         return (tuple(new_list), recolour_dict1, recolour_dict2)
 
 
