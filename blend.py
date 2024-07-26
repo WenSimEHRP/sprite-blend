@@ -25,91 +25,73 @@ class Print:
 
 class ProcessImage:
     def __init__(self, image_path):
-        self.image_path: str    = image_path
-        self.image: Image.Image = self.load_image
-        self.tuple: tuple       = self.to_2d_tuple if isinstance(self.image, Image.Image) else None
-        if not self.check_index_mode:
-            Print.error(f"Image {image_path} is not in index mode.")
-            sys.exit(1)
-        self.used_colours: set  = self.get_used_colours
+        self.image_path: str = image_path
+        self._image = self._load_image()
+        self._spritemap = self._load_spritemap()
+        self._used_colours = self._get_used_colours()
 
-    @property
-    def load_image(self) -> Image.Image | bool:
+    def _load_image(self):
         try:
             with Image.open(self.image_path) as img:
+                if img.mode != "P":
+                    Print.error(f"Image {self.image_path} is not in index mode")
+                    sys.exit(1)
                 return img.copy()
         except Exception as e:
-            Print.error(f"{type(e)}, {e}")
+            Print.error(f"Error when loading image, {type(e)}, {e}")
             sys.exit(1)
 
-    @property
-    def check_index_mode(self) -> bool:
-        return False if not isinstance(self.image, Image.Image) else self.image.mode == "P"
-
-    @property
-    def to_2d_tuple(self) -> tuple:
-        width, height = self.image.size
-        pixels = list(self.image.getdata())
+    def _load_spritemap(self):
+        width, height = self._image.size
+        pixels = list(self._image.getdata())
         return tuple(
             tuple(pixels[i * width:(i + 1) * width])
-                  for i in range(height))
+            for i in range(height)
+        )
+
+    def _get_used_colours(self):
+        return set(pix for row in self._spritemap for pix in row)
 
     @property
-    def get_used_colours(self) -> set:
-        return set(self.image.getdata())
+    def image(self):
+        return self._image
+
+    @property
+    def spritemap(self):
+        return self._spritemap
+
+    @property
+    def used_colours(self):
+        return self._used_colours
 
 class CompareImage:
     def __init__(self, patient1, patient2):
         self.patient1 = patient1
         self.patient2 = patient2
-        self._compare_state = None
-        self._tuple = None
-        self._recolour_dict1 = None
-        self._recolour_dict2 = None
         if not self.same_size:
-            Print.error("Images are not the same size")
+            Print.error(f"Images {self.patient1.image_path} and {self.patient1.image_path} are not the same size")
             sys.exit(1)
 
     @property
-    def check_instance(self) -> bool:
-        return isinstance(self.patient1, ProcessImage) and isinstance(self.patient2, ProcessImage)
+    def same_size(self) -> bool:
+        return self.patient1.image.size == self.patient2.image.size
 
     @staticmethod
-    def same_size(compare1: ProcessImage, compare2: ProcessImage) -> bool:
-        return compare1.image.size == compare2.image.size
-
-    @property
-    def compare_state(self) -> bool:
-        if self._compare_state is None:
-            self._compare_state = self.compare(self.patient1, self.patient2)
-        return self._compare_state
-
-    @property
-    def my_tuple(self) -> tuple:
-        if self._tuple is None or self._recolour_dict1 is None or self._recolour_dict2 is None:
-            self._tuple, self._recolour_dict1, self._recolour_dict2 = self.new_tuple(self.patient1, self.patient2)
-        return self._tuple, self._recolour_dict1, self._recolour_dict2
-
-    @staticmethod
-    def compare(compare1: ProcessImage, compare2: ProcessImage) -> bool:
-        return compare1.tuple == compare2.tuple
-
-    @staticmethod
-    def new_tuple(compare1, compare2) -> tuple:
-        new_list = [[0 for _ in range(len(compare1.tuple[0]))] for _ in range(len(compare1.tuple))]
+    def get_recinfo(compare1, compare2) -> tuple:
+        new_list = [[0 for _ in range(len(compare1.spritemap[0]))] for _ in range(len(compare1.spritemap))]
         # dict initialization
-        recolour_dict1 = {x:x for x in range(256)}
-        recolour_dict2 = {x:x for x in range(256)}
+        recolour_dict1 = {_:_ for _ in range(256)}
+        recolour_dict2 = {_:_ for _ in range(256)}
         processed_coords = set()
 
         common_colours = compare1.used_colours & compare2.used_colours
 
         for colour in compare1.used_colours:
-            coords1 = [(x, y) for y, row in enumerate(compare1.tuple) for x, pix in enumerate(row) if pix == colour]
+            coords1 = [(x, y) for y, row in enumerate(compare1.spritemap) for x, pix in enumerate(row) if pix == colour]
             for coord in coords1:
                 if coord in processed_coords: continue
-                colour2 = compare2.tuple[coord[1]][coord[0]]
-                coords2 = [(x, y) for y, row in enumerate(compare2.tuple) for x, pix in enumerate(row) if pix == colour2]
+                colour2 = compare2.spritemap[coord[1]][coord[0]]
+                coords2 = [(x, y) for y, row in enumerate(compare2.spritemap) for x, pix in enumerate(row) if pix == colour2]
                 final_coords:set = set(coords1) & set(coords2)
                 processed_coords |= final_coords
                 if colour == colour2:
@@ -129,7 +111,42 @@ class CompareImage:
                     recolour_dict2[new_colour] = colour2
 
         Print.info(f"Current number of colours: {len(common_colours)}")
-        return (tuple(new_list), recolour_dict1, recolour_dict2, common_colours)
+        return (tuple(new_list), recolour_dict1, recolour_dict2)
+
+
+def process_image(image_paths: list[str]) -> tuple:
+    class ProcessedImage:
+        def __init__(self, spritemap):
+            self.spritemap = spritemap
+
+        @property
+        def used_colours(self) -> set:
+            if self.spritemap is None:
+                return set()
+            return set(pix for row in self.spritemap for pix in row)
+
+
+    images = [ProcessImage(image_path) for image_path in image_paths]
+    spritemap, rec1, rec2 = CompareImage.get_recinfo(images[0], images[1])
+
+    recolour_sprites = {image_paths[0]:rec1.copy(), image_paths[1]:rec2.copy()}
+    processed        = ProcessedImage(spritemap)
+
+    for i in range(2, len(images)):
+        spritemap, base_rec, new_rec = CompareImage.get_recinfo(processed, images[i])
+        processed.spritemap = spritemap
+
+        for key, recolour_sprite in recolour_sprites.items():
+            rec_copy = recolour_sprite.copy()
+            for dkey, dval in base_rec.items():
+                recolour_sprite[dkey] = rec_copy[dval]
+
+            recolour_sprites[key] = recolour_sprite
+
+        recolour_sprites[image_paths[i]] = new_rec
+
+    return (processed.spritemap, images[0].image.getpalette(), recolour_sprites)
+
 
 def write_image(filename: str, data: tuple, palette: Image.Palette) -> None:
     new_image = Image.new("P", (len(data[0]), len(data)))
@@ -137,41 +154,25 @@ def write_image(filename: str, data: tuple, palette: Image.Palette) -> None:
     new_image.putpalette(palette)
     new_image.save(filename)
 
-def process_image(image_paths: list[str]) -> tuple:
-    class ProcessedImage:
-        tuple = None
-        used_colours = None
 
-    images = [ProcessImage(image_path) for image_path in image_paths]
-    spritemap, rec1, rec2, colours = CompareImage.new_tuple(images[0], images[1])
-
-    recolour_sprites = [rec1.copy(), rec2.copy()]
-    processed        = ProcessedImage()
-    processed.tuple  = spritemap
-    processed.used_colours = colours
-
-    for i in range(2, len(images)):
-        spritemap, base_rec, new_rec, colours = CompareImage.new_tuple(processed, images[i])
-        processed.tuple = spritemap
-        processed.used_colours |= colours
-
-        for i, recolour_sprite in enumerate(recolour_sprites):
-            my_copy = recolour_sprite.copy()
-            for dkey, dval in base_rec.items():
-                recolour_sprite[dkey] = my_copy[dval]
-
-            recolour_sprites[i] = recolour_sprite
-
-        recolour_sprites.append(new_rec)
-
-    return (processed.tuple, images[0].image.getpalette(), recolour_sprites)
-
+def write_recolour(filename: str, recolour_data: dict[dict]) -> None:
+    with open(filename, "w+") as f:
+        for ind, rec in recolour_data.items():
+            f.write("recolour_sprite {")
+            f.write(f"\n    // {ind}")
+            counter = 0
+            for key, value in rec.items():
+                if key == value: continue
+                if counter % 12 == 0: f.write("\n    ")
+                f.write(f"0x{key:02x}:0x{value:02x};")
+                counter += 1
+            f.write("\n}\n")
+        Print.info(f"Recolour data written to {filename}")
 
 def main():
     import time
     from datetime import datetime
     start = time.time()
-    print(start)
 
     Print.info("blend.py - A tool to blend multiple images together")
     Print.info(f"Copyright 2024-{datetime.now().year} WenSim <wensimehrp@gmail.com>")
@@ -195,20 +196,8 @@ def main():
 
     spritemap, palette, recs = process_image(files)
     write_image("output.png", spritemap, palette)
+    write_recolour("recolour.txt", recs)
 
-    with open("recolour.txt", "w+") as f:
-        for ind, rec in enumerate(recs):
-            f.write("recolour_sprite {")
-            f.write(f"\n    // {files[ind]}")
-            counter = 0
-            for key, value in rec.items():
-                if key == value: continue
-                if counter % 8 == 0:
-                    f.write("\n   ")
-                f.write(f" {key:<3}: {value:<3};")
-                counter += 1
-            f.write("\n}\n")
-        Print.info("Recolour data written to recolour.txt")
 
     Print.info("Finished processing images")
     Print.info(f"Time taken: {time.time() - start:.2f}s")
