@@ -113,6 +113,13 @@ class CompareImage:
         Print.info(f"Current number of colours: {len(common_colours)}")
         return (tuple(new_list), recolour_dict1, recolour_dict2)
 
+def gen_recolour_sprite(rec1, rec2):
+    rec_copy = rec1.copy()
+    rec_copy_1 = rec1.copy()
+    for dkey, dval in rec2.items():
+        rec_copy[dkey] = rec_copy_1[dval]
+
+    return rec_copy
 
 def process_image(image_paths: list[str]) -> tuple:
     class ProcessedImage:
@@ -137,11 +144,7 @@ def process_image(image_paths: list[str]) -> tuple:
         processed.spritemap = spritemap
 
         for key, recolour_sprite in recolour_sprites.items():
-            rec_copy = recolour_sprite.copy()
-            for dkey, dval in base_rec.items():
-                recolour_sprite[dkey] = rec_copy[dval]
-
-            recolour_sprites[key] = recolour_sprite
+            recolour_sprites[key] = gen_recolour_sprite(recolour_sprite, base_rec)
 
         recolour_sprites[image_paths[i]] = new_rec
 
@@ -167,17 +170,24 @@ def write_recolour(filename: str, recolour_data: dict[dict]) -> None:
                 f.write(f"0x{key:02x}:0x{value:02x};")
                 counter += 1
             f.write("\n}\n")
+
+        Print.info(f"Used colours: {counter}")
         Print.info(f"Recolour data written to {filename}")
 
-def main():
-    import time
+def copyright():
     from datetime import datetime
-    start = time.time()
 
     Print.info("blend.py - A tool to blend multiple images together")
     Print.info(f"Copyright 2024-{datetime.now().year} WenSim <wensimehrp@gmail.com>")
     Print.info("Licensed under the MIT License")
     Print.info("")
+
+
+def main():
+    import time
+    start = time.time()
+
+    copyright()
 
     if len(sys.argv) < 2:
         Print.error("Please provide at least one image to process\nUsage: blend.py <image1> <image2> ...")
