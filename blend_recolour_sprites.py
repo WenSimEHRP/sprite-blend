@@ -13,7 +13,11 @@ if __name__ == "__main__":
     data = sys.argv[1:]
 
     for i, my_data in enumerate(data):
-        new_recolour_sprites = {int(pair[0], 16): int(pair[1], 16) for pair in re.findall(r"(0x[0-9a-fA-F]{2}|\d{1,3}):\s*(0x[0-9a-fA-F]{2}|\d{1,3})", my_data)}
+        # if pair starts with 0x it's a hex
+        new_recolour_sprites = {
+            (int(pair[0], 16) if pair[0].startswith("0x") else int(pair[0])):
+            (int(pair[1], 16) if pair[1].startswith("0x") else int(pair[1]))
+            for pair in re.findall(r"(0x[0-9a-fA-F]{2}|\d{1,3}):\s*(0x[0-9a-fA-F]{2}|\d{1,3})", my_data)}
         # use the new data to update the recolour sprites
         recolour_sprites[i].update(new_recolour_sprites)
 

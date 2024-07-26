@@ -157,22 +157,28 @@ def write_image(filename: str, data: tuple, palette: Image.Palette) -> None:
     new_image.putpalette(palette)
     new_image.save(filename)
 
+def format_recolour_data(recolour_data: dict[dict]) -> dict:
+    f = {}
+    for ind, rec in recolour_data.items():
+        s = ""
+        s+=("recolour_sprite {")
+        s+=(f"\n    // {ind}")
+        counter = 0
+        for key, value in rec.items():
+            if key == value: continue
+            if counter % 12 == 0: s+=("\n    ")
+            s+=(f"0x{key:02x}:0x{value:02x};")
+            counter += 1
+        s+=("\n}\n")
+        Print.info(f"Used colours: {counter}")
+        f[ind] = s
+    return f
 
 def write_recolour(filename: str, recolour_data: dict[dict]) -> None:
     with open(filename, "w+") as f:
-        for ind, rec in recolour_data.items():
-            f.write("recolour_sprite {")
-            f.write(f"\n    // {ind}")
-            counter = 0
-            for key, value in rec.items():
-                if key == value: continue
-                if counter % 12 == 0: f.write("\n    ")
-                f.write(f"0x{key:02x}:0x{value:02x};")
-                counter += 1
-            f.write("\n}\n")
-
-        Print.info(f"Used colours: {counter}")
-        Print.info(f"Recolour data written to {filename}")
+        for rec in format_recolour_data(recolour_data).values():
+            f.write(rec)
+    Print.info(f"Recolour data written to {filename}")
 
 def copyright():
     from datetime import datetime
