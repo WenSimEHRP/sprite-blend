@@ -10,14 +10,14 @@ class Print:
     @staticmethod
     def error(message):
         sys.stderr.write(
-            f"{Print.colours["red"]}Error: {message}{Print.colours["reset"]}\n"
+            f"{Print.colours['red']}Error: {message}{Print.colours['reset']}\n"
         )
         sys.exit(1)
 
     @staticmethod
     def warn(message):
         sys.stderr.write(
-            f"{Print.colours["yellow"]}Warning: {message}{Print.colours["reset"]}\n"
+            f"{Print.colours['yellow']}Warning: {message}{Print.colours['reset']}\n"
         )
 
     @staticmethod
