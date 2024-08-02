@@ -8,21 +8,26 @@ class Print:
     colours = {"red": "\033[91m", "yellow": "\033[93m", "reset": "\033[0m"}
 
     @staticmethod
-    def error(message):
+    def error(*message, sep=" "):
         sys.stderr.write(
-            f"{Print.colours['red']}Error: {message}{Print.colours['reset']}\n"
+            f"{Print.colours['red']}Error: {sep.join(message)}{Print.colours['reset']}\n"
         )
         sys.exit(1)
 
     @staticmethod
-    def warn(message):
+    def warn(*message, sep=" "):
         sys.stderr.write(
-            f"{Print.colours['yellow']}Warning: {message}{Print.colours['reset']}\n"
+            f"{Print.colours['yellow']}Warning: {sep.join(message)}{Print.colours['reset']}\n"
         )
 
     @staticmethod
-    def info(message):
-        sys.stdout.write(f"{message}\n")
+    def info(*message, sep=" "):
+        sys.stdout.write(f"{sep.join(message)}\n")
+
+    @staticmethod
+    # does not print anything but colours the message
+    def colour(message, colour):
+        return f"{Print.colours[colour]}{message}{Print.colours['reset']}"
 
 
 class ProcessImage:
@@ -39,7 +44,7 @@ class ProcessImage:
                     Print.warn(f"Image {self.image_path} is not in index mode")
                 return img.copy()
         except Exception as e:
-            Print.error(f"Error when loading image, {type(e)}, {e}")
+            Print.error(f"failed to load image, {type(e).__name__}, {e}")
 
     def _load_spritemap(self):
         width, height = self.image.size
@@ -91,6 +96,19 @@ class CompareImage:
         image1: Union[ProcessImage, ProcessedImage],
         image2: Union[ProcessImage, ProcessedImage],
     ) -> tuple[tuple, dict, dict]:
+        # FIXME sep the function to proper class
+        # check image size
+        if not image1.image.size == image2.image.size:
+            Print.error(
+                f"Images {image1.image_path} and {image2.image_path} are not the same size"
+            )
+        # evaluate colours
+        Print.info(
+            f"Estimated colour count: "
+            + f"{max(len(image1.used_colours), len(image2.used_colours))}"
+            + "-"
+            + f"{len(image1.used_colours) * len(image2.used_colours)}"
+        )
         # data initialization
         new_spritemap = [
             [0 for _ in range(len(image1.spritemap[0]))]
@@ -138,7 +156,7 @@ class CompareImage:
                     recolour_dict1[new_colour] = colour1
                     recolour_dict2[new_colour] = colour2
 
-        Print.info(f"Current number of colours: {len(common_colours)}")
+        Print.info(f"Colours in final spritemap: {len(common_colours)}")
         return (tuple(new_spritemap), recolour_dict1, recolour_dict2)
 
 
